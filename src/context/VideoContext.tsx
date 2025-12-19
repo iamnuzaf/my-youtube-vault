@@ -1,83 +1,246 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Video, Category, VideoContextType } from '@/types/video';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 const VideoContext = createContext<VideoContextType | undefined>(undefined);
 
-const VIDEOS_KEY = 'youtube-manager-videos';
-const CATEGORIES_KEY = 'youtube-manager-categories';
+interface NeonVideo {
+  id: string;
+  title: string;
+  url: string;
+  thumbnail: string | null;
+  channel_title: string | null;
+  category_id: string | null;
+  created_at: string;
+}
 
-const defaultCategories: Category[] = [
-  { id: '1', name: 'Music', color: '340 82% 52%' },
-  { id: '2', name: 'Education', color: '200 98% 39%' },
-  { id: '3', name: 'Entertainment', color: '262 83% 58%' },
-];
+interface NeonCategory {
+  id: string;
+  name: string;
+  color: string;
+}
+
+function mapNeonVideoToVideo(neonVideo: NeonVideo): Video {
+  return {
+    id: neonVideo.id,
+    title: neonVideo.title,
+    url: neonVideo.url,
+    thumbnailUrl: neonVideo.thumbnail || '',
+    categoryId: neonVideo.category_id,
+    createdAt: neonVideo.created_at,
+  };
+}
 
 export function VideoProvider({ children }: { children: ReactNode }) {
   const [videos, setVideos] = useState<Video[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const fetchData = async () => {
+    try {
+      // Fetch videos
+      const videosResponse = await supabase.functions.invoke('neon-videos', {
+        body: {},
+        method: 'POST',
+      });
+      
+      // Need to use query params for GET-like actions
+      const videosResult = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/neon-videos?action=getVideos`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      const videosData = await videosResult.json();
+      
+      if (videosData.videos) {
+        setVideos(videosData.videos.map(mapNeonVideoToVideo));
+      }
+
+      // Fetch categories
+      const categoriesResult = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/neon-videos?action=getCategories`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      const categoriesData = await categoriesResult.json();
+      
+      if (categoriesData.categories) {
+        setCategories(categoriesData.categories);
+      }
+    } catch (error) {
+      console.error('Failed to fetch data:', error);
+      toast.error('Failed to load data from server');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const storedVideos = localStorage.getItem(VIDEOS_KEY);
-    const storedCategories = localStorage.getItem(CATEGORIES_KEY);
-    
-    if (storedVideos) {
-      setVideos(JSON.parse(storedVideos));
-    }
-    
-    if (storedCategories) {
-      setCategories(JSON.parse(storedCategories));
-    } else {
-      setCategories(defaultCategories);
-      localStorage.setItem(CATEGORIES_KEY, JSON.stringify(defaultCategories));
-    }
+    fetchData();
   }, []);
 
-  useEffect(() => {
-    if (videos.length > 0 || localStorage.getItem(VIDEOS_KEY)) {
-      localStorage.setItem(VIDEOS_KEY, JSON.stringify(videos));
-    }
-  }, [videos]);
-
-  useEffect(() => {
-    if (categories.length > 0) {
-      localStorage.setItem(CATEGORIES_KEY, JSON.stringify(categories));
-    }
-  }, [categories]);
-
-  const addVideo = (video: Omit<Video, 'id' | 'createdAt'>) => {
-    const newVideo: Video = {
-      ...video,
-      id: crypto.randomUUID(),
-      createdAt: new Date().toISOString(),
-    };
-    setVideos(prev => [newVideo, ...prev]);
-  };
-
-  const deleteVideo = (id: string) => {
-    setVideos(prev => prev.filter(v => v.id !== id));
-  };
-
-  const addCategory = (name: string, color: string) => {
-    const newCategory: Category = {
-      id: crypto.randomUUID(),
-      name,
-      color,
-    };
-    setCategories(prev => [...prev, newCategory]);
-  };
-
-  const updateCategory = (id: string, name: string, color: string) => {
-    setCategories(prev => prev.map(c => c.id === id ? { ...c, name, color } : c));
-  };
-
-  const deleteCategory = (id: string) => {
-    setCategories(prev => prev.filter(c => c.id !== id));
-    setVideos(prev => prev.map(v => v.categoryId === id ? { ...v, categoryId: null } : v));
-    if (selectedCategory === id) {
-      setSelectedCategory(null);
+  const addVideo = async (video: Omit<Video, 'id' | 'createdAt'>) => {
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/neon-videos?action=addVideo`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            title: video.title,
+            url: video.url,
+            thumbnail: video.thumbnailUrl,
+            channelTitle: null,
+            categoryId: video.categoryId,
+          }),
+        }
+      );
+      
+      const data = await response.json();
+      
+      if (data.video) {
+        setVideos(prev => [mapNeonVideoToVideo(data.video), ...prev]);
+        toast.success('Video added successfully');
+      } else if (data.error) {
+        toast.error(data.error);
+      }
+    } catch (error) {
+      console.error('Failed to add video:', error);
+      toast.error('Failed to add video');
     }
   };
+
+  const deleteVideo = async (id: string) => {
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/neon-videos?action=deleteVideo`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ id }),
+        }
+      );
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setVideos(prev => prev.filter(v => v.id !== id));
+        toast.success('Video deleted');
+      } else if (data.error) {
+        toast.error(data.error);
+      }
+    } catch (error) {
+      console.error('Failed to delete video:', error);
+      toast.error('Failed to delete video');
+    }
+  };
+
+  const addCategory = async (name: string, color: string) => {
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/neon-videos?action=addCategory`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ name, color }),
+        }
+      );
+      
+      const data = await response.json();
+      
+      if (data.category) {
+        setCategories(prev => [...prev, data.category]);
+        toast.success('Category added');
+      } else if (data.error) {
+        toast.error(data.error);
+      }
+    } catch (error) {
+      console.error('Failed to add category:', error);
+      toast.error('Failed to add category');
+    }
+  };
+
+  const updateCategory = async (id: string, name: string, color: string) => {
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/neon-videos?action=updateCategory`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ id, name, color }),
+        }
+      );
+      
+      const data = await response.json();
+      
+      if (data.category) {
+        setCategories(prev => prev.map(c => c.id === id ? data.category : c));
+        toast.success('Category updated');
+      } else if (data.error) {
+        toast.error(data.error);
+      }
+    } catch (error) {
+      console.error('Failed to update category:', error);
+      toast.error('Failed to update category');
+    }
+  };
+
+  const deleteCategory = async (id: string) => {
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/neon-videos?action=deleteCategory`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ id }),
+        }
+      );
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setCategories(prev => prev.filter(c => c.id !== id));
+        setVideos(prev => prev.map(v => v.categoryId === id ? { ...v, categoryId: null } : v));
+        if (selectedCategory === id) {
+          setSelectedCategory(null);
+        }
+        toast.success('Category deleted');
+      } else if (data.error) {
+        toast.error(data.error);
+      }
+    } catch (error) {
+      console.error('Failed to delete category:', error);
+      toast.error('Failed to delete category');
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   return (
     <VideoContext.Provider value={{

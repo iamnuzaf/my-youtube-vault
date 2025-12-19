@@ -1,1 +1,7 @@
 project_id = "dlndykpwwerlsxdewxji"
+
+[functions.auth]
+verify_jwt = false
+
+[functions.neon-videos]
+verify_jwt = false
