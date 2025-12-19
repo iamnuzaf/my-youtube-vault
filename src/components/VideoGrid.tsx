@@ -1,21 +1,26 @@
 import { useVideos } from '@/context/VideoContext';
 import { VideoCard } from './VideoCard';
 import { Video } from 'lucide-react';
+import { detectPlatform } from '@/lib/video-utils';
 
 export function VideoGrid() {
-  const { videos, selectedCategory } = useVideos();
+  const { videos, selectedCategory, selectedPlatform } = useVideos();
   
-  const filteredVideos = selectedCategory 
-    ? videos.filter(v => v.categoryId === selectedCategory)
-    : videos;
+  const filteredVideos = videos.filter(v => {
+    const matchesCategory = selectedCategory ? v.categoryId === selectedCategory : true;
+    const matchesPlatform = selectedPlatform ? detectPlatform(v.url) === selectedPlatform : true;
+    return matchesCategory && matchesPlatform;
+  });
 
   if (filteredVideos.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center">
         <Video className="h-16 w-16 text-muted-foreground/50" />
-        <h3 className="mt-4 text-lg font-medium text-foreground">No videos yet</h3>
+        <h3 className="mt-4 text-lg font-medium text-foreground">No videos found</h3>
         <p className="mt-1 text-sm text-muted-foreground">
-          Add your first YouTube video using the form above
+          {videos.length === 0 
+            ? 'Add your first video using the form above'
+            : 'No videos match the selected filters'}
         </p>
       </div>
     );

@@ -2,6 +2,7 @@ import { NavBar } from '@/components/NavBar';
 import { VideoForm } from '@/components/VideoForm';
 import { VideoGrid } from '@/components/VideoGrid';
 import { CategoryFilter } from '@/components/CategoryFilter';
+import { PlatformFilter } from '@/components/PlatformFilter';
 import { CategoryManager } from '@/components/CategoryManager';
 import { VideoProvider } from '@/context/VideoContext';
 
@@ -24,11 +25,22 @@ const Index = () => {
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
                   <h2 className="text-lg font-semibold text-foreground">Your Videos</h2>
-                  <p className="text-sm text-muted-foreground">Filter by category or manage your categories</p>
+                  <p className="text-sm text-muted-foreground">Filter by platform or category</p>
                 </div>
                 <CategoryManager />
               </div>
-              <CategoryFilter />
+              
+              {/* Platform Filter */}
+              <div className="space-y-2">
+                <h3 className="text-sm font-medium text-muted-foreground">Platform</h3>
+                <PlatformFilter />
+              </div>
+              
+              {/* Category Filter */}
+              <div className="space-y-2">
+                <h3 className="text-sm font-medium text-muted-foreground">Category</h3>
+                <CategoryFilter />
+              </div>
             </section>
 
             {/* Video Grid */}
