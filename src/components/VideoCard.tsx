@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { ExternalLink, Trash2, User } from 'lucide-react';
+import { ExternalLink, Trash2, User, Youtube, Facebook } from 'lucide-react';
 import { Video } from '@/types/video';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useVideos } from '@/context/VideoContext';
+import { detectPlatform } from '@/lib/video-utils';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,9 +24,9 @@ export function VideoCard({ video }: VideoCardProps) {
   const { categories, deleteVideo } = useVideos();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const category = categories.find(c => c.id === video.categoryId);
+  const platform = detectPlatform(video.url);
 
   const handleClick = (e: React.MouseEvent) => {
-    // Use anchor behavior for better compatibility with sandboxed environments
     const link = document.createElement('a');
     link.href = video.url;
     link.target = '_blank';
@@ -58,6 +59,12 @@ export function VideoCard({ video }: VideoCardProps) {
     setShowDeleteDialog(false);
   };
 
+  const getPlatformIcon = () => {
+    if (platform === 'youtube') return <Youtube className="h-4 w-4 text-red-500" />;
+    if (platform === 'facebook') return <Facebook className="h-4 w-4 text-blue-500" />;
+    return null;
+  };
+
   return (
     <>
       <div 
@@ -66,13 +73,19 @@ export function VideoCard({ video }: VideoCardProps) {
       >
         <div className="relative aspect-video overflow-hidden bg-muted">
           <img
-            src={video.thumbnailUrl}
+            src={video.thumbnailUrl || '/placeholder.svg'}
             alt={video.title}
             className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
           />
           <div className="absolute inset-0 bg-foreground/0 transition-colors group-hover:bg-foreground/10" />
           <div className="absolute right-2 top-2 opacity-0 transition-opacity group-hover:opacity-100">
             <ExternalLink className="h-5 w-5 text-background drop-shadow-md" />
+          </div>
+          {/* Platform badge */}
+          <div className="absolute left-2 top-2">
+            <div className="rounded-full bg-background/90 p-1.5 shadow-sm">
+              {getPlatformIcon()}
+            </div>
           </div>
         </div>
         
