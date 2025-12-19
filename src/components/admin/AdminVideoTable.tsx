@@ -3,8 +3,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Trash2, Pencil, ExternalLink, X, Check, Search } from 'lucide-react';
+import { Trash2, Pencil, ExternalLink, X, Check, Search, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   AlertDialog,
@@ -41,6 +42,8 @@ export function AdminVideoTable({ videos, onRefresh }: AdminVideoTableProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState('');
   const [editUrl, setEditUrl] = useState('');
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
 
   const filteredVideos = videos.filter(video => 
     video.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -48,6 +51,27 @@ export function AdminVideoTable({ videos, onRefresh }: AdminVideoTableProps) {
     video.user_email.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (video.user_name?.toLowerCase().includes(searchTerm.toLowerCase()))
   );
+
+  const allSelected = filteredVideos.length > 0 && filteredVideos.every(v => selectedIds.has(v.id));
+  const someSelected = selectedIds.size > 0;
+
+  const toggleSelectAll = () => {
+    if (allSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredVideos.map(v => v.id)));
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    const newSelected = new Set(selectedIds);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedIds(newSelected);
+  };
 
   const startEditing = (video: VideoWithUser) => {
     setEditingId(video.id);
@@ -100,22 +124,106 @@ export function AdminVideoTable({ videos, onRefresh }: AdminVideoTableProps) {
     }
   };
 
+  const bulkDelete = async () => {
+    try {
+      const { error } = await supabase
+        .from('videos')
+        .delete()
+        .in('id', Array.from(selectedIds));
+
+      if (error) throw error;
+      
+      toast.success(`Deleted ${selectedIds.size} videos`);
+      setSelectedIds(new Set());
+      setBulkDeleteOpen(false);
+      onRefresh();
+    } catch (error) {
+      console.error('Error bulk deleting videos:', error);
+      toast.error('Failed to delete videos');
+    }
+  };
+
+  const exportSelected = () => {
+    const selectedVideos = videos.filter(v => selectedIds.has(v.id));
+    const exportData = selectedVideos.map(v => ({
+      title: v.title,
+      url: v.url,
+      platform: v.platform,
+      owner_email: v.user_email,
+      owner_name: v.user_name,
+      created_at: v.created_at,
+      tags: v.tags,
+    }));
+    
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `videos-export-${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    
+    toast.success(`Exported ${selectedVideos.length} videos`);
+  };
+
   return (
     <div className="space-y-4">
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Search videos by title, URL, or user..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="pl-10"
-        />
+      <div className="flex flex-col sm:flex-row gap-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search videos by title, URL, or user..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+        
+        {someSelected && (
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={exportSelected}>
+              <Download className="h-4 w-4 mr-2" />
+              Export ({selectedIds.size})
+            </Button>
+            <AlertDialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" size="sm">
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete ({selectedIds.size})
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete {selectedIds.size} Videos</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will permanently delete {selectedIds.size} videos. This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={bulkDelete}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    Delete All
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        )}
       </div>
 
       <div className="rounded-md border">
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-[50px]">
+                <Checkbox 
+                  checked={allSelected}
+                  onCheckedChange={toggleSelectAll}
+                />
+              </TableHead>
               <TableHead className="w-[80px]">Thumb</TableHead>
               <TableHead>Title</TableHead>
               <TableHead>URL</TableHead>
@@ -128,13 +236,19 @@ export function AdminVideoTable({ videos, onRefresh }: AdminVideoTableProps) {
           <TableBody>
             {filteredVideos.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                   No videos found
                 </TableCell>
               </TableRow>
             ) : (
               filteredVideos.map((video) => (
-                <TableRow key={video.id}>
+                <TableRow key={video.id} className={selectedIds.has(video.id) ? 'bg-muted/50' : ''}>
+                  <TableCell>
+                    <Checkbox 
+                      checked={selectedIds.has(video.id)}
+                      onCheckedChange={() => toggleSelect(video.id)}
+                    />
+                  </TableCell>
                   <TableCell>
                     <img 
                       src={video.thumbnail_url || '/placeholder.svg'} 
@@ -258,6 +372,7 @@ export function AdminVideoTable({ videos, onRefresh }: AdminVideoTableProps) {
       </div>
       
       <p className="text-sm text-muted-foreground">
+        {someSelected ? `${selectedIds.size} selected · ` : ''}
         Showing {filteredVideos.length} of {videos.length} videos
       </p>
     </div>

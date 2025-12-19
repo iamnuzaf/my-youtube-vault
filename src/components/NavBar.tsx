@@ -1,12 +1,19 @@
 import { useState } from 'react';
-import { Youtube, LogOut, Link as LinkIcon, Menu, Moon, Sun, Shield, Users } from 'lucide-react';
+import { Youtube, LogOut, Link as LinkIcon, Menu, Moon, Sun, Shield, Users, UserCircle } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { useTheme } from 'next-themes';
 import { Badge } from '@/components/ui/badge';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface NavBarProps {
   importExportButton?: React.ReactNode;
@@ -16,6 +23,7 @@ export function NavBar({ importExportButton }: NavBarProps) {
   const { logout, profile, isAdmin } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const { theme, setTheme } = useTheme();
+  const navigate = useNavigate();
 
   const navItems = [
     { to: '/', icon: Youtube, label: 'Videos' },
@@ -63,21 +71,32 @@ export function NavBar({ importExportButton }: NavBarProps) {
             <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
             <span className="sr-only">Toggle theme</span>
           </Button>
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">
-              {displayName}
-            </span>
-            {isAdmin && (
-              <Badge variant="secondary" className="flex items-center gap-1">
-                <Shield className="h-3 w-3" />
-                Admin
-              </Badge>
-            )}
-          </div>
-          <Button variant="ghost" size="sm" onClick={logout}>
-            <LogOut className="h-4 w-4 mr-2" />
-            Logout
-          </Button>
+          
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="flex items-center gap-2">
+                <UserCircle className="h-4 w-4" />
+                <span className="text-sm">{displayName}</span>
+                {isAdmin && (
+                  <Badge variant="secondary" className="flex items-center gap-1">
+                    <Shield className="h-3 w-3" />
+                    Admin
+                  </Badge>
+                )}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem onClick={() => navigate('/profile')}>
+                <UserCircle className="h-4 w-4 mr-2" />
+                Profile Settings
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={logout}>
+                <LogOut className="h-4 w-4 mr-2" />
+                Logout
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         {/* Mobile Menu */}
@@ -119,6 +138,19 @@ export function NavBar({ importExportButton }: NavBarProps) {
                       {item.label}
                     </NavLink>
                   ))}
+                  <NavLink 
+                    to="/profile"
+                    onClick={() => setIsOpen(false)}
+                    className={({ isActive }) => cn(
+                      "flex items-center gap-3 px-4 py-3 rounded-lg text-base font-medium transition-colors",
+                      isActive 
+                        ? "bg-primary/10 text-primary" 
+                        : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                    )}
+                  >
+                    <UserCircle className="h-5 w-5" />
+                    Profile
+                  </NavLink>
                 </nav>
                 
                 <div className="mt-auto pt-6 border-t border-border">

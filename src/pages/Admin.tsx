@@ -9,11 +9,12 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Shield, User, Trash2, Loader2, Video, Link as LinkIcon, Users } from 'lucide-react';
+import { Shield, User, Trash2, Loader2, Video, Link as LinkIcon, Users, Activity } from 'lucide-react';
 import { toast } from 'sonner';
 import { Navigate } from 'react-router-dom';
 import { AdminVideoTable } from '@/components/admin/AdminVideoTable';
 import { AdminLinkTable } from '@/components/admin/AdminLinkTable';
+import { ActivityLogTable } from '@/components/admin/ActivityLogTable';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -234,7 +235,6 @@ export default function Admin() {
 
       setUsers(prev => prev.filter(u => u.id !== userId));
       toast.success('User deleted successfully');
-      // Refresh videos and links as they may have been deleted
       fetchAllVideos();
       fetchAllLinks();
     } catch (error) {
@@ -255,7 +255,7 @@ export default function Admin() {
         <div className="mx-auto max-w-7xl space-y-8">
           <div>
             <h1 className="text-3xl font-bold">Admin Panel</h1>
-            <p className="text-muted-foreground">Manage users, videos, and links</p>
+            <p className="text-muted-foreground">Manage users, videos, links, and view activity</p>
           </div>
 
           {isLoading ? (
@@ -276,6 +276,10 @@ export default function Admin() {
                 <TabsTrigger value="links" className="gap-2">
                   <LinkIcon className="h-4 w-4" />
                   Links ({allLinks.length})
+                </TabsTrigger>
+                <TabsTrigger value="activity" className="gap-2">
+                  <Activity className="h-4 w-4" />
+                  Activity
                 </TabsTrigger>
               </TabsList>
 
@@ -411,6 +415,23 @@ export default function Admin() {
                   </CardHeader>
                   <CardContent>
                     <AdminLinkTable links={allLinks} onRefresh={fetchAllLinks} />
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="activity">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Activity className="h-5 w-5" />
+                      Activity Logs
+                    </CardTitle>
+                    <CardDescription>
+                      Track user actions and system events
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <ActivityLogTable />
                   </CardContent>
                 </Card>
               </TabsContent>

@@ -66,6 +66,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const logActivity = async (userId: string, action: string, entityType?: string, entityId?: string, metadata?: Record<string, any>) => {
+    try {
+      await supabase.from('activity_logs').insert({
+        user_id: userId,
+        action,
+        entity_type: entityType || null,
+        entity_id: entityId || null,
+        metadata: metadata || null,
+      });
+    } catch (error) {
+      console.error('Error logging activity:', error);
+    }
+  };
+
   useEffect(() => {
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -101,13 +115,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (email: string, password: string): Promise<{ error?: string }> => {
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (error) {
         return { error: error.message };
+      }
+
+      // Log the login activity
+      if (data.user) {
+        await logActivity(data.user.id, 'login', 'session', undefined, { email });
       }
 
       return {};
@@ -147,6 +166,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = async () => {
+    // Log the logout activity before signing out
+    if (user) {
+      await logActivity(user.id, 'logout', 'session');
+    }
+    
     await supabase.auth.signOut();
     setUser(null);
     setSession(null);
