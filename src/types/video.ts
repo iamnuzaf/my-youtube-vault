@@ -1,3 +1,5 @@
+import { VideoPlatform } from '@/lib/video-utils';
+
 export interface Category {
   id: string;
   name: string;
@@ -19,10 +21,12 @@ export interface VideoContextType {
   videos: Video[];
   categories: Category[];
   selectedCategory: string | null;
+  selectedPlatform: VideoPlatform | null;
   addVideo: (video: Omit<Video, 'id' | 'createdAt'>) => void;
   deleteVideo: (id: string) => void;
   addCategory: (name: string, color: string) => void;
   updateCategory: (id: string, name: string, color: string) => void;
   deleteCategory: (id: string) => void;
   setSelectedCategory: (id: string | null) => void;
+  setSelectedPlatform: (platform: VideoPlatform | null) => void;
 }

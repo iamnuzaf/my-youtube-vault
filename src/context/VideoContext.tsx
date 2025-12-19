@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Video, Category, VideoContextType } from '@/types/video';
 import { apiConfig } from '@/lib/api-config';
+import { VideoPlatform } from '@/lib/video-utils';
 import { toast } from 'sonner';
 
 const VideoContext = createContext<VideoContextType | undefined>(undefined);
@@ -33,6 +34,7 @@ export function VideoProvider({ children }: { children: ReactNode }) {
   const [videos, setVideos] = useState<Video[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedPlatform, setSelectedPlatform] = useState<VideoPlatform | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchData = async () => {
@@ -218,12 +220,14 @@ export function VideoProvider({ children }: { children: ReactNode }) {
       videos,
       categories,
       selectedCategory,
+      selectedPlatform,
       addVideo,
       deleteVideo,
       addCategory,
       updateCategory,
       deleteCategory,
       setSelectedCategory,
+      setSelectedPlatform,
     }}>
       {children}
     </VideoContext.Provider>
