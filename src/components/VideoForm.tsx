@@ -1,46 +1,48 @@
 import { useState, useEffect } from 'react';
-import { Plus, Link as LinkIcon, Loader2 } from 'lucide-react';
+import { Plus, Link as LinkIcon, Loader2, Youtube, Facebook } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useVideos } from '@/context/VideoContext';
-import { extractVideoId, getYouTubeThumbnail, isValidYouTubeUrl } from '@/lib/youtube';
+import { detectPlatform, extractVideoId, isValidVideoUrl, fetchVideoMetadata, getThumbnail } from '@/lib/video-utils';
 import { useToast } from '@/hooks/use-toast';
-
-interface VideoMetadata {
-  title: string;
-  channelName: string;
-  channelUrl: string;
-}
 
 export function VideoForm() {
   const [url, setUrl] = useState('');
   const [title, setTitle] = useState('');
   const [channelName, setChannelName] = useState('');
   const [channelUrl, setChannelUrl] = useState('');
+  const [thumbnail, setThumbnail] = useState('');
   const [categoryId, setCategoryId] = useState<string>('');
   const [isFetchingMetadata, setIsFetchingMetadata] = useState(false);
   const { categories, addVideo } = useVideos();
   const { toast } = useToast();
 
+  const platform = detectPlatform(url);
+
   // Auto-fetch video metadata when URL changes
   useEffect(() => {
     const fetchMetadata = async () => {
-      if (!isValidYouTubeUrl(url)) return;
+      if (!isValidVideoUrl(url)) {
+        setThumbnail('');
+        return;
+      }
       
       setIsFetchingMetadata(true);
       try {
-        const response = await fetch(
-          `https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`
-        );
-        if (response.ok) {
-          const data = await response.json();
-          setTitle(data.title || '');
-          setChannelName(data.author_name || '');
-          setChannelUrl(data.author_url || '');
+        const metadata = await fetchVideoMetadata(url);
+        if (metadata) {
+          setTitle(metadata.title);
+          setChannelName(metadata.channelName);
+          setChannelUrl(metadata.channelUrl);
+          setThumbnail(metadata.thumbnail);
+        } else {
+          // Fallback for platforms without easy metadata
+          const videoId = extractVideoId(url);
+          setThumbnail(getThumbnail(url, platform, videoId));
         }
       } catch (error) {
-        // Silent fail - user can enter details manually
+        console.error('Failed to fetch metadata:', error);
       } finally {
         setIsFetchingMetadata(false);
       }
@@ -48,31 +50,32 @@ export function VideoForm() {
 
     const timeoutId = setTimeout(fetchMetadata, 500);
     return () => clearTimeout(timeoutId);
-  }, [url]);
+  }, [url, platform]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!url.trim()) {
-      toast({ title: 'Please enter a YouTube URL', variant: 'destructive' });
+      toast({ title: 'Please enter a video URL', variant: 'destructive' });
       return;
     }
 
-    if (!isValidYouTubeUrl(url)) {
-      toast({ title: 'Invalid YouTube URL', description: 'Please enter a valid YouTube link', variant: 'destructive' });
+    if (!isValidVideoUrl(url)) {
+      toast({ 
+        title: 'Invalid video URL', 
+        description: 'Please enter a valid YouTube or Facebook video link', 
+        variant: 'destructive' 
+      });
       return;
     }
 
     const videoId = extractVideoId(url);
-    if (!videoId) {
-      toast({ title: 'Could not extract video ID', variant: 'destructive' });
-      return;
-    }
+    const finalThumbnail = thumbnail || getThumbnail(url, platform, videoId);
 
     addVideo({
       url: url.trim(),
       title: title.trim() || 'Untitled Video',
-      thumbnailUrl: getYouTubeThumbnail(videoId),
+      thumbnailUrl: finalThumbnail,
       channelName: channelName.trim() || null,
       channelUrl: channelUrl.trim() || null,
       categoryId: categoryId || null,
@@ -82,22 +85,36 @@ export function VideoForm() {
     setTitle('');
     setChannelName('');
     setChannelUrl('');
+    setThumbnail('');
     setCategoryId('');
     toast({ title: 'Video added successfully!' });
+  };
+
+  const getPlatformIcon = () => {
+    if (platform === 'youtube') return <Youtube className="h-4 w-4 text-red-500" />;
+    if (platform === 'facebook') return <Facebook className="h-4 w-4 text-blue-500" />;
+    return <LinkIcon className="h-4 w-4 text-muted-foreground" />;
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4 rounded-lg border border-border bg-card p-6 shadow-sm">
       <div className="space-y-2">
         <label htmlFor="url" className="text-sm font-medium text-foreground">
-          YouTube URL
+          Video URL
+          {platform !== 'unknown' && (
+            <span className="ml-2 text-xs text-muted-foreground">
+              ({platform === 'youtube' ? 'YouTube' : 'Facebook'} detected)
+            </span>
+          )}
         </label>
         <div className="relative">
-          <LinkIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <div className="absolute left-3 top-1/2 -translate-y-1/2">
+            {getPlatformIcon()}
+          </div>
           <Input
             id="url"
             type="url"
-            placeholder="https://youtube.com/watch?v=..."
+            placeholder="Paste YouTube or Facebook video URL..."
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             className="pl-10"
@@ -143,6 +160,12 @@ export function VideoForm() {
           </Select>
         </div>
       </div>
+
+      {platform === 'facebook' && !title && (
+        <p className="text-sm text-amber-600">
+          Facebook video titles can't be auto-fetched. Please enter a title manually.
+        </p>
+      )}
 
       {channelName && (
         <p className="text-sm text-muted-foreground">
