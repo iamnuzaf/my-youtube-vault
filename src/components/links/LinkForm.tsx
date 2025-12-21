@@ -7,17 +7,10 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useLinks } from '@/context/LinkContext';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
 
 // Fetch page title from edge function (server-side)
 async function fetchPageTitle(url: string): Promise<string | null> {
   try {
-    const { data, error } = await supabase.functions.invoke('neon-videos', {
-      body: { url },
-      headers: { 'Content-Type': 'application/json' },
-    });
-    
-    // Add action param via query string workaround
     const response = await fetch(
       `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/neon-videos?action=fetchTitle`,
       {
