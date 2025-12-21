@@ -8,21 +8,41 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useLinks } from '@/context/LinkContext';
 import { useToast } from '@/hooks/use-toast';
 
-// Fetch page title from URL
+// Fetch page title from URL with timeout
 async function fetchPageTitle(url: string): Promise<string | null> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 second timeout
+  
   try {
-    const response = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`);
+    const response = await fetch(
+      `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
+      { signal: controller.signal }
+    );
+    clearTimeout(timeoutId);
     const data = await response.json();
     
     if (data.contents) {
       const titleMatch = data.contents.match(/<title[^>]*>([^<]+)<\/title>/i);
       if (titleMatch && titleMatch[1]) {
-        return titleMatch[1].trim();
+        // Decode HTML entities
+        const decoded = titleMatch[1]
+          .trim()
+          .replace(/&amp;/g, '&')
+          .replace(/&lt;/g, '<')
+          .replace(/&gt;/g, '>')
+          .replace(/&quot;/g, '"')
+          .replace(/&#39;/g, "'");
+        return decoded;
       }
     }
     return null;
   } catch (error) {
-    console.error('Failed to fetch page title:', error);
+    clearTimeout(timeoutId);
+    if (error instanceof Error && error.name === 'AbortError') {
+      console.log('Title fetch timed out');
+    } else {
+      console.error('Failed to fetch page title:', error);
+    }
     return null;
   }
 }
