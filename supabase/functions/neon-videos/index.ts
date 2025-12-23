@@ -69,19 +69,8 @@ async function initTable(client: any) {
     CREATE TABLE IF NOT EXISTS categories (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       name TEXT NOT NULL,
-      color TEXT NOT NULL,
-      parent_id UUID REFERENCES categories(id) ON DELETE CASCADE
+      color TEXT NOT NULL
     )
-  `);
-
-  // Add parent_id column to categories if it doesn't exist
-  await client.queryArray(`
-    DO $$ 
-    BEGIN 
-      IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='categories' AND column_name='parent_id') THEN
-        ALTER TABLE categories ADD COLUMN parent_id UUID REFERENCES categories(id) ON DELETE CASCADE;
-      END IF;
-    END $$;
   `);
 
   // Create links table
@@ -112,19 +101,8 @@ async function initTable(client: any) {
     CREATE TABLE IF NOT EXISTS link_categories (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       name TEXT NOT NULL,
-      color TEXT NOT NULL,
-      parent_id UUID REFERENCES link_categories(id) ON DELETE CASCADE
+      color TEXT NOT NULL
     )
-  `);
-
-  // Add parent_id column to link_categories if it doesn't exist
-  await client.queryArray(`
-    DO $$ 
-    BEGIN 
-      IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='link_categories' AND column_name='parent_id') THEN
-        ALTER TABLE link_categories ADD COLUMN parent_id UUID REFERENCES link_categories(id) ON DELETE CASCADE;
-      END IF;
-    END $$;
   `);
   
   // Insert default video categories if none exist
@@ -223,10 +201,10 @@ serve(async (req) => {
     }
 
     if (action === 'addCategory') {
-      const { name, color, parentId } = await req.json();
+      const { name, color } = await req.json();
       const result = await client.queryObject(
-        'INSERT INTO categories (name, color, parent_id) VALUES ($1, $2, $3) RETURNING *',
-        [name, color, parentId || null]
+        'INSERT INTO categories (name, color) VALUES ($1, $2) RETURNING *',
+        [name, color]
       );
       console.log('Category added:', result.rows[0]);
       return new Response(
@@ -236,10 +214,10 @@ serve(async (req) => {
     }
 
     if (action === 'updateCategory') {
-      const { id, name, color, parentId } = await req.json();
+      const { id, name, color } = await req.json();
       const result = await client.queryObject(
-        'UPDATE categories SET name = $1, color = $2, parent_id = $3 WHERE id = $4 RETURNING *',
-        [name, color, parentId || null, id]
+        'UPDATE categories SET name = $1, color = $2 WHERE id = $3 RETURNING *',
+        [name, color, id]
       );
       console.log('Category updated:', result.rows[0]);
       return new Response(
@@ -318,10 +296,10 @@ serve(async (req) => {
     }
 
     if (action === 'addLinkCategory') {
-      const { name, color, parentId } = await req.json();
+      const { name, color } = await req.json();
       const result = await client.queryObject(
-        'INSERT INTO link_categories (name, color, parent_id) VALUES ($1, $2, $3) RETURNING *',
-        [name, color, parentId || null]
+        'INSERT INTO link_categories (name, color) VALUES ($1, $2) RETURNING *',
+        [name, color]
       );
       console.log('Link category added:', result.rows[0]);
       return new Response(
@@ -331,10 +309,10 @@ serve(async (req) => {
     }
 
     if (action === 'updateLinkCategory') {
-      const { id, name, color, parentId } = await req.json();
+      const { id, name, color } = await req.json();
       const result = await client.queryObject(
-        'UPDATE link_categories SET name = $1, color = $2, parent_id = $3 WHERE id = $4 RETURNING *',
-        [name, color, parentId || null, id]
+        'UPDATE link_categories SET name = $1, color = $2 WHERE id = $3 RETURNING *',
+        [name, color, id]
       );
       console.log('Link category updated:', result.rows[0]);
       return new Response(

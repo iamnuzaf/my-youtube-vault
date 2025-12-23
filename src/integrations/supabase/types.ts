@@ -49,32 +49,21 @@ export type Database = {
           color: string | null
           id: string
           name: string
-          parent_id: string | null
           user_id: string
         }
         Insert: {
           color?: string | null
           id?: string
           name: string
-          parent_id?: string | null
           user_id: string
         }
         Update: {
           color?: string | null
           id?: string
           name?: string
-          parent_id?: string | null
           user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "link_categories_parent_id_fkey"
-            columns: ["parent_id"]
-            isOneToOne: false
-            referencedRelation: "link_categories"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       links: {
         Row: {
@@ -176,32 +165,21 @@ export type Database = {
           color: string | null
           id: string
           name: string
-          parent_id: string | null
           user_id: string
         }
         Insert: {
           color?: string | null
           id?: string
           name: string
-          parent_id?: string | null
           user_id: string
         }
         Update: {
           color?: string | null
           id?: string
           name?: string
-          parent_id?: string | null
           user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "video_categories_parent_id_fkey"
-            columns: ["parent_id"]
-            isOneToOne: false
-            referencedRelation: "video_categories"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       videos: {
         Row: {

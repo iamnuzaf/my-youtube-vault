@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Link, LinkCategory, LinkContextType } from '@/types/link';
 import { apiConfig } from '@/lib/api-config';
 import { toast } from 'sonner';
@@ -20,7 +20,6 @@ interface NeonLinkCategory {
   id: string;
   name: string;
   color: string;
-  parent_id: string | null;
 }
 
 function mapNeonLinkToLink(neonLink: NeonLink): Link {
@@ -41,7 +40,6 @@ function mapNeonCategoryToCategory(neonCategory: NeonLinkCategory): LinkCategory
     id: neonCategory.id,
     name: neonCategory.name,
     color: neonCategory.color,
-    parentId: neonCategory.parent_id,
   };
 }
 
@@ -175,7 +173,7 @@ export function LinkProvider({ children }: { children: ReactNode }) {
       const response = await fetch(apiConfig.getVideosUrl('addLinkCategory'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: category.name, color: category.color, parentId: category.parentId }),
+        body: JSON.stringify({ name: category.name, color: category.color }),
       });
       
       const data = await response.json();
@@ -197,7 +195,7 @@ export function LinkProvider({ children }: { children: ReactNode }) {
       const response = await fetch(apiConfig.getVideosUrl('updateLinkCategory'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, name: category.name, color: category.color, parentId: category.parentId }),
+        body: JSON.stringify({ id, name: category.name, color: category.color }),
       });
       
       const data = await response.json();
@@ -237,14 +235,6 @@ export function LinkProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const getParentCategories = useCallback(() => {
-    return linkCategories.filter(c => c.parentId === null);
-  }, [linkCategories]);
-
-  const getSubcategories = useCallback((parentId: string) => {
-    return linkCategories.filter(c => c.parentId === parentId);
-  }, [linkCategories]);
-
   return (
     <LinkContext.Provider value={{
       links,
@@ -260,8 +250,6 @@ export function LinkProvider({ children }: { children: ReactNode }) {
       addLinkCategory,
       updateLinkCategory,
       deleteLinkCategory,
-      getParentCategories,
-      getSubcategories,
     }}>
       {children}
     </LinkContext.Provider>

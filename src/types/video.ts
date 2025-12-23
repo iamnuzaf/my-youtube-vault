@@ -4,7 +4,6 @@ export interface Category {
   id: string;
   name: string;
   color: string;
-  parentId: string | null;
 }
 
 export interface Video {
@@ -30,12 +29,10 @@ export interface VideoContextType {
   addVideo: (video: Omit<Video, 'id' | 'createdAt'>) => void;
   updateVideo: (id: string, video: Partial<Omit<Video, 'id' | 'createdAt'>>) => void;
   deleteVideo: (id: string) => void;
-  addCategory: (name: string, color: string, parentId?: string | null) => void;
-  updateCategory: (id: string, name: string, color: string, parentId?: string | null) => void;
+  addCategory: (name: string, color: string) => void;
+  updateCategory: (id: string, name: string, color: string) => void;
   deleteCategory: (id: string) => void;
   setSelectedCategory: (id: string | null) => void;
   setSelectedPlatform: (platform: VideoPlatform | null) => void;
   setSearchQuery: (query: string) => void;
-  getParentCategories: () => Category[];
-  getSubcategories: (parentId: string) => Category[];
 }
